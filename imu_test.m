@@ -24,7 +24,7 @@ for i=2:size(A,1)
     
     dxyzdot = RotationR(rpy)*uvw;
     drpydot = JacobianR(rpy)*AV';
-%     duvwdot = LA' + RotationR(rpy)*[0;0;Gravity] + cross(uvw, AV');
+    duvwdot = LA' + RotationR(rpy)'*[0;0;Gravity] + cross(uvw, AV');
     duvwdot = LA' + cross(uvw, AV');
 
     dxyz = dxyzdot * dt;

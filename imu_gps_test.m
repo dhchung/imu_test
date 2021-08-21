@@ -1,24 +1,38 @@
 function imu_gps_test()
 
 fprintf('Loading IMU\n');
-IMU = load('/mnt/sdb/Avikus/20210701/exp_night_1/imu/imu.txt');
+IMU = load('/mnt/sdb/Avikus/20210701/exp_night_1/imu/imu_raw.txt');
 fprintf('IMU loaded\n');
 fprintf('Loading GPS\n');
 GPS = loadGPS('/mnt/sdb/Avikus/20210701/exp_night_1/gps/gps_raw.txt');
 GPS = ProcessGPS(GPS);  %time, x, y, z, yaw
+
+
+GPS(:,2:3) = GPS(:,2:3) - GPS(1,2:3);
 
 timeline = [GPS(:,1), zeros(size(GPS,1),1), (1:size(GPS,1))';...
             IMU(:,1), ones(size(IMU,1),1), (1:size(IMU,1))'];
 
 timeline = sortrows(timeline,1);
 
+BX = [0.1;0.2;0];
+BW = [0;0;0];
+
+
 initial_state = [0;0;0;... %x       y       z
                  0;0;0;... %roll    pitch   yaw
                  0;0;0;... %u       v       w
-                 0;0;0;... %bx      by      bz
-                 0;0;0];   %br      bp      by
+                 BX;... %bx      by      bz
+                 BW];   %br      bp      by
 
 start = false;
+
+state =[];
+state_now = initial_state;
+
+last_time = 0;
+
+state_gps = [];
 
 for i=1:size(timeline,1)
     if and(~start, timeline(i,2)==1)
@@ -28,34 +42,71 @@ for i=1:size(timeline,1)
         gps_idx = timeline(i,3);
         
         start = true;
-        initial_state = [GPS(gps_idx,2:4)'; [0;0;GPS(gps_idx,5)]; zeros(6,1)];
+        initial_state = [GPS(gps_idx,2:4)'; [0;0;GPS(gps_idx,5)]; zeros(3,1);BX;BW];
+        state_gps = [state_gps [GPS(gps_idx,2:4)'; [0;0;GPS(gps_idx,5)]]];
+        
+        state_now = initial_state;
+        state = [state state_now];
+        last_time = timeline(i,1);
+
         continue;
     end
 
     if timeline(i,2)==0
         %process GPS
+        gps_idx = timeline(i,3);
         
+        state_gps = [state_gps [GPS(gps_idx,2:4)'; [0;0;GPS(gps_idx,5)]]];
+       
+        figure(2);
+        plot3(state_gps(1,:), state_gps(2,:), state_gps(3,:));
+        axis equal;
+        xlabel X;
+        ylabel Y;
+        zlabel Z;
+        drawnow;
+        state_gps(:,end) - state_now(1:6,end)
         continue;
     end
     
     
     if timeline(i,2)==1
         %process imu
+        imu_idx = timeline(i,3);
+        IMU_data = [IMU(imu_idx, 27:29)';...
+                    IMU(imu_idx, 15:17)'];
+        
+        dt = timeline(i,1) - last_time;
+        last_time = timeline(i,1);
+        state_now = Prediction(state_now, IMU_data, dt);
+        state = [state state_now];
+        
+        figure(1);
+        plot3(state(1,:), state(2,:), state(3,:));
+        axis equal;
+        xlabel X;
+        ylabel Y;
+        zlabel Z;
+
+        drawnow;
+
+        
         continue;
     end
     
 
 end
-        
-        
-        
+
+figure(1);
+plot3(state(1,:), state(2,:), state(3,:));
+axis equal;
 
 plotgps(GPS);
 
 end
 
 function plotgps(GPS)
-    figure(1);
+    figure(2);
     plot3(GPS(:,2), GPS(:,3), GPS(:,4),'b');
     hold on;
     scatter3(GPS(1,2), GPS(1,3), GPS(1,4), 20, 'r');
@@ -197,4 +248,85 @@ end
 
 function pow_result = pow(a, b)
 pow_result = a.^b;
+end
+
+function M = JacobianR(rpy)
+    roll = rpy(1,1);
+    pitch = rpy(2,1);
+    yaw = rpy(3,1);
+    M = [1, sin(roll) * tan(pitch), cos(roll)*tan(pitch);...
+         0, cos(roll), -sin(roll);...
+         0, sin(roll)/cos(pitch), cos(roll)/cos(pitch)];
+end
+
+function R = RotationR(rpy)
+    roll = rpy(1,1);
+    pitch = rpy(2,1);
+    yaw = rpy(3,1);
+    Rx = [1, 0, 0;...
+          0, cos(roll), -sin(roll);...
+          0, sin(roll), cos(roll)];
+    Ry = [cos(pitch), 0, sin(pitch);...
+          0, 1, 0;...
+          -sin(pitch), 0, cos(pitch)];
+    Rz = [cos(yaw), -sin(yaw), 0;...
+          sin(yaw), cos(yaw), 0;...
+          0, 0, 1];
+
+    R = Rz*Ry*Rx;
+end
+
+function NextState = Prediction(PrevState, IMU_input, dt)
+Gravity = 9.8;
+
+IXYZ = IMU_input(1:3,1);
+IRPY = IMU_input(4:6,1);
+
+RPY = PrevState(4:6,1);
+UVW = PrevState(7:9,1);
+BXYZ = PrevState(10:12,1);
+BRPY = PrevState(13:15,1);
+
+NextState = PrevState + [RotationR(RPY)*UVW;...
+                         JacobianR(RPY)*(IRPY-BRPY);...
+                         (IXYZ - BXYZ) + RotationR(RPY)'*[0;0;Gravity] + cross(IRPY - BRPY, UVW);...
+                         0;...
+                         0;...
+                         0;...
+                         0;...
+                         0;...
+                         0]*dt;
+
+
+end
+
+function [H, B] = NumJacobi(state, imu, hs, hi, dt)
+H = zeros(size(state,1));
+B = zeros(size(state,1), size(imu,1));
+for i=1:size(H,1)
+    for j=1:size(H,2)
+        s_1 = state;
+        s_1(j) = s_1(j) + hs(j);
+        s_2 = state;
+        s_2(j) = s_1(j) - hs(j);
+        s_p = Prediction(s_1, imu, dt);
+        s_m = Prediction(s_2, imu, dt);
+        H(i,j) = (s_p(i,1)-s_m(i,1))/(2*hs(j));
+    end
+end
+
+for i=1:size(B,1)
+    for j=1:size(B,2)
+        i_1 = imu;
+        i_1(j) = i_1(j)+hi(j);
+        i_2 = imu;
+        i_2(j) = i_2(j)-hi(j);
+        
+        s_p = Prediction(state, i_1, dt);
+        s_m = Prediction(state, i_2, dt);
+        
+        B(i,j) = (s_p(i,1)-s_m(i,1))/(2*hi(j));
+    end
+end
+
 end
