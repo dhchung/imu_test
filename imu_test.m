@@ -1,7 +1,7 @@
 function imu_test()
 fprintf("LOADING\n");
-A = load('/mnt/sdb/Avikus/20210701/exp_night_1/imu/imu.txt');
-% A = load('/home/dongha/imu_raw.txt');
+A = load('imu.txt');
+A = load('imu_raw.txt');
 fprintf("LOADED\n");
 
 Orientation = A(:,2:5);
@@ -25,7 +25,7 @@ for i=2:size(A,1)
     dxyzdot = RotationR(rpy)*uvw;
     drpydot = JacobianR(rpy)*AV';
     duvwdot = LA' + RotationR(rpy)'*[0;0;Gravity] + cross(uvw, AV');
-    duvwdot = LA' + cross(uvw, AV');
+%     duvwdot = LA' + cross(uvw, AV');
 
     dxyz = dxyzdot * dt;
     drpy = drpydot * dt;
