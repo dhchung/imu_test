@@ -1,6 +1,6 @@
 function imu_2d_test()
 radius = 2.0;
-omega = 10*pi/180.0; %rad/s
+omega = -10*pi/180.0; %rad/s
 
 dt = 0.01;
 time = 0:dt:200;
@@ -15,9 +15,9 @@ actual_ax = 0.0;
 actual_ay = radius * omega^2;
 actual_w = omega;
 
-actual_bias_x = 4;
-actual_bias_y = 4;
-actual_bias_w = 0.2;
+actual_bias_x = 0.2;
+actual_bias_y = 0.2;
+actual_bias_w = 0.02;
 
 actual_bias = [actual_bias_x;...
                actual_bias_y;...
@@ -27,7 +27,7 @@ initial_bias = [0;0;0];
 % initial_uv = [omega*radius;0];
 initial_uv = [0;0];
 
-IMU_variance = [0.4, 0.4, 0.4];
+IMU_variance = [0.4, 0.4, 0.04];
 
 GPS_variance = [0.0001, 0.0001, 0.000001];
 
@@ -92,7 +92,20 @@ for i=1:time_span
             drawnow;
         end
         
-        if(rem(i,50)==0)
+        if(rem(i,50)==0 && i<500)
+            %GPS INPUT
+            GPS = GPS_input(:,i);
+            y = GPS - H*state_now;
+            S = H*P*H' + diag(GPS_variance);
+            K = P*H'*inv(S);
+            state_now = state_now + K*y;
+            P = (eye(size(state_now,1)) - K*H)*P;
+            fixed_state = [fixed_state state_now];
+            
+            estimated_bias = state_now(6:8,1);
+            actual_bias - estimated_bias
+        end
+        if(rem(i,50)==0 && i>=700)
             %GPS INPUT
             GPS = GPS_input(:,i);
             y = GPS - H*state_now;

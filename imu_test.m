@@ -38,7 +38,7 @@ for i=2:size(A,1)
     X = [X, [xyz;rpy;uvw]];
     
     T = [RotationR(rpy) xyz;0 0 0 1];
-    Temp = [0; 100; 0; 1];
+    Temp = [100; 0; 0; 1];
     Temp = T*Temp;
     
     Arrow = zeros(3,2);   
@@ -59,7 +59,7 @@ for i=2:size(A,1)
         
         lims = [xyz-10 xyz+10];
         
-        axis([lims(1,:), lims(2,:), lims(3,:)]);
+%         axis([lims(1,:), lims(2,:), lims(3,:)]);
         drawnow;
         
     end
