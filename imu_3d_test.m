@@ -6,7 +6,7 @@ fprintf('Loading GPS\n');
 GPS = loadGPS('gps_raw.txt');
 GPS = ProcessGPS(GPS);  %time, x, y, z, yaw
 
-GPS(:,2:3) = GPS(:,2:3) - GPS(1,2:3);
+% GPS(:,2:3) = GPS(:,2:3) - GPS(1,2:3);
 
 timeline = [GPS(:,1), zeros(size(GPS,1),1), (1:size(GPS,1))';...
             IMU(:,1), ones(size(IMU,1),1), (1:size(IMU,1))'];
@@ -15,6 +15,16 @@ timeline = sortrows(timeline,1);
 P = diag([0.1, 0.1, 0.1, 100, 100, 100, 100, 100]);
 Q = diag([IMU_variance(1), IMU_variance(2), IMU_variance(3)]);
 
+State = zeros(18,1);
+last_time = timeline(1,1);
+
+initial_time = 
+
+
+for i = 2:size(timeline,1)
+    
+    
+end
 
 
 end
