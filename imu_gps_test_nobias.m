@@ -1,4 +1,4 @@
-function imu_gps_test()
+function imu_gps_test_nobias()
 
 fprintf('Loading IMU\n');
 % IMU = load('imu_raw.txt');
@@ -8,7 +8,7 @@ IMU = load('imu.txt');
 IMU(:,2:5) = [IMU(:,5) IMU(:,2:4)];
 
 fprintf('IMU loaded\n');
-fprintf('Loading GPS\n');
+fprintf('Loading GPS\n'); 
 GPS = loadGPS('gps_raw.txt');
 GPS = ProcessGPS(GPS);  %time, x, y, z, yaw
 GPS_raw = GPS;
