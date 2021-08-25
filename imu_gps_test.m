@@ -1,28 +1,33 @@
 function imu_gps_test()
 
 fprintf('Loading IMU\n');
-% IMU = load('imu_raw.txt');
+IMU = load('./07291651/imu_raw.txt');
 
-IMU = load('imu.txt');
+% IMU = load('imu.txt');
 % Quaternion xyzw to wxyz
 IMU(:,2:5) = [IMU(:,5) IMU(:,2:4)];
 
 fprintf('IMU loaded\n');
 fprintf('Loading GPS\n');
-GPS = loadGPS('gps_raw.txt');
+GPS = loadGPS('./07291651/gps_raw.txt');
 GPS = ProcessGPS(GPS);  %time, x, y, z, yaw
+
+% GPS = GPS(GPS(:,1)>1627545239.6,:);
+% IMU = IMU(IMU(:,1)>1627545239.6,:);
+
 GPS_raw = GPS;
 GPS(:,5) = GPS(:,5)/180.0*pi;
 
 
 GPS(:,2:3) = GPS(:,2:3) - GPS(1,2:3);
+GPS(:,4) = 0;
 
 timeline = [GPS(:,1), zeros(size(GPS,1),1), (1:size(GPS,1))';...
             IMU(:,1), ones(size(IMU,1),1), (1:size(IMU,1))'];
 
 timeline = sortrows(timeline,1);
 
-BX = [-1.4264;-1.0078;0.8167];
+BX = [0.0869;0.0102;1.1191];
 
 BX = [0;0;0];
 BW = [0;0;0];
@@ -45,7 +50,7 @@ IMU_uncertaintyA = [0.1, 0.1, 0.1];
 
 Q = diag([IMU_uncertaintyX, IMU_uncertaintyW]);
 
-GPS_uncertaintyX = [0.5, 0.5, 0.5];
+GPS_uncertaintyX = [10, 10, 0.1];
 GPS_uncertaintyA = 0.1;
 
 P = diag([0.1, 0.1, 0.1,...
@@ -79,6 +84,8 @@ for i=1:size(timeline,1)
         state_now = initial_state;
         state = [state state_now];
         last_time = timeline(i,1);
+        last_GPS = GPS_input;
+        last_gps_time = last_time;
 
         continue;
     end
@@ -122,11 +129,24 @@ for i=1:size(timeline,1)
         [state_now, P] = IMUPrediction(state_now, P, zeros(6,1), zeros(6), dt);
         
         GPS_input = GPS(gps_idx,2:5)';
-        state_gps = [state_gps GPS_input];
 
-        [state_now, P] = GPSUpdate(state_now, P, GPS_input, diag([GPS_uncertaintyX, GPS_uncertaintyA]));
-        state = [state state_now];
+        change_loc = GPS_input(1:3) - last_GPS(1:3);
+        change_time = timeline(i,1) - last_gps_time;
+        norm(change_loc)
+        if(norm(change_loc) > 0.2 || change_time > 2)
+            [state_now, P] = GPSUpdate(state_now, P, GPS_input, diag([GPS_uncertaintyX, GPS_uncertaintyA]));
+            state = [state state_now];
+            state_gps = [state_gps GPS_input];
+
+            last_GPS = GPS_input;
+            last_gps_time = last_time;
+        end
         
+        
+
+        
+        
+    end    
         figure(2);
         plot3(state(1,:), state(2,:), state(3,:),'g');
         hold on;
@@ -137,11 +157,8 @@ for i=1:size(timeline,1)
         xlabel X;
         ylabel Y;
         zlabel Z;
-        view(0,90);
+%         view(0,90);
         drawnow;
-
-        continue;
-    end    
 
 end
 

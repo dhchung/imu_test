@@ -15,9 +15,9 @@ actual_ax = 0.0;
 actual_ay = radius * omega^2;
 actual_w = omega;
 
-actual_bias_x = 0.2;
-actual_bias_y = 0.2;
-actual_bias_w = 0.02;
+actual_bias_x = 2;
+actual_bias_y = 2;
+actual_bias_w = 2;
 
 actual_bias = [actual_bias_x;...
                actual_bias_y;...

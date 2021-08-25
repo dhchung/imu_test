@@ -9,7 +9,7 @@ IMU(:,2:5) = [IMU(:,5) IMU(:,2:4)];
 
 fprintf('IMU loaded\n');
 fprintf('Loading GPS\n'); 
-GPS = loadGPS('gps_raw.txt');
+GPS = loadGPS('gps_new.txt');
 GPS = ProcessGPS(GPS);  %time, x, y, z, yaw
 GPS_raw = GPS;
 GPS(:,5) = GPS(:,5)/180.0*pi;
@@ -35,9 +35,6 @@ initial_state = [0;0;0;... %x y z
                  BW;
                  BA];
 
-Bias_uncertaintyX = [10, 10, 10];
-Bias_uncertaintyW = [0.4, 0.4, 0.4];
-Bias_uncertaintyA = [0.4, 0.4, 0.4];
 
 IMU_uncertaintyX = [10, 10, 10];
 IMU_uncertaintyW = [1, 1, 1];
