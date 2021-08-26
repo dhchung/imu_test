@@ -22,6 +22,10 @@ GPS(:,5) = GPS(:,5)/180.0*pi;
 GPS(:,2:3) = GPS(:,2:3) - GPS(1,2:3);
 GPS(:,4) = 0;
 
+figure(200);
+plot(GPS(:,2),GPS(:,3));
+axis equal;
+
 timeline = [GPS(:,1), zeros(size(GPS,1),1), (1:size(GPS,1))';...
             IMU(:,1), ones(size(IMU,1),1), (1:size(IMU,1))'];
 

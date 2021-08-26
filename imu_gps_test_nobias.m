@@ -3,13 +3,16 @@ function imu_gps_test_nobias()
 fprintf('Loading IMU\n');
 % IMU = load('imu_raw.txt');
 
-IMU = load('imu.txt');
+% IMU = load('imu.txt');
+
+IMU = load('./07291651/imu_raw.txt');
 % Quaternion xyzw to wxyz
 IMU(:,2:5) = [IMU(:,5) IMU(:,2:4)];
 
 fprintf('IMU loaded\n');
 fprintf('Loading GPS\n'); 
-GPS = loadGPS('gps_new.txt');
+% GPS = loadGPS('gps_raw.txt');
+GPS = loadGPS('./07291651/gps_raw.txt');
 GPS = ProcessGPS(GPS);  %time, x, y, z, yaw
 GPS_raw = GPS;
 GPS(:,5) = GPS(:,5)/180.0*pi;
@@ -22,21 +25,13 @@ timeline = [GPS(:,1), zeros(size(GPS,1),1), (1:size(GPS,1))';...
 
 timeline = sortrows(timeline,1);
 
-BX = [-1.4264;-1.0078;0.8167];
-
-BX = [0;0;0];
-BW = [0;0;0];
-BA = [0;0;0];
 
 initial_state = [0;0;0;... %x y z
                  0;0;0;... %roll pitch yaw
-                 0;0;0;... %u v w
-                 BX;
-                 BW;
-                 BA];
+                 0;0;0];
 
 
-IMU_uncertaintyX = [10, 10, 10];
+IMU_uncertaintyX = [0.01, 0.01, 0.01];
 IMU_uncertaintyW = [1, 1, 1];
 IMU_uncertaintyA = [0.1, 0.1, 0.1];
 
@@ -47,10 +42,7 @@ GPS_uncertaintyA = 0.1;
 
 P = diag([0.1, 0.1, 0.1,...
           0.1, 0.1, 0.1,...
-          2, 2, 2,...
-          Bias_uncertaintyX,...
-          Bias_uncertaintyW,...
-          Bias_uncertaintyA]);
+          2, 2, 2]);
 
 start = false;
 
@@ -69,7 +61,7 @@ for i=1:size(timeline,1)
         gps_idx = timeline(i,3);
         
         start = true;
-        initial_state = [GPS(gps_idx,2:4)'; [0;0;GPS(gps_idx,5)]; zeros(3,1);BX;BW;BA];
+        initial_state = [GPS(gps_idx,2:4)'; [0;0;GPS(gps_idx,5)]; zeros(3,1)];
         GPS_input = GPS(gps_idx,2:5)';
         state_gps = [state_gps GPS_input];
         
@@ -93,13 +85,12 @@ for i=1:size(timeline,1)
         
         [state_now, P] = IMUPrediction(state_now, P, IMU_data, Q, dt);
         
-        
-        IMU_attitude = quat2eul(IMU(imu_idx, 2:5))';
+        IMU_YPR = quat2eul(IMU(imu_idx, 2:5))';
+        IMU_attitude = [IMU_YPR(3,1); IMU_YPR(2,1); IMU_YPR(1,1)];
 %         [state_now, P] = IMUUpdate(state_now, P, IMU_attitude, diag(IMU_uncertaintyA));        
         
         state = [state state_now];
-%         P(1:3,1:3)
-        state_now(10:18)
+
 
         imu_processed = true;
         
@@ -109,36 +100,30 @@ for i=1:size(timeline,1)
     if timeline(i,2)==0
         %process GPS
         gps_idx = timeline(i,3);
-        if(GPS_raw(gps_idx,5)==180)
-            continue;
+        if(GPS_raw(gps_idx,5)~=180)
+            dt = timeline(i,1) - last_time;
+            last_time = timeline(i,1);
+            [state_now, P] = IMUPrediction(state_now, P, zeros(6,1), zeros(6), dt);
+
+            GPS_input = GPS(gps_idx,2:5)';
+            state_gps = [state_gps GPS_input];
+
+            [state_now, P] = GPSUpdate(state_now, P, GPS_input, diag([GPS_uncertaintyX, GPS_uncertaintyA]));
+            state = [state state_now];
         end
-            
-        
-        dt = timeline(i,1) - last_time;
-        last_time = timeline(i,1);
-        [state_now, P] = IMUPrediction(state_now, P, zeros(6,1), zeros(6), dt);
-        
-        GPS_input = GPS(gps_idx,2:5)';
-        state_gps = [state_gps GPS_input];
 
-        [state_now, P] = GPSUpdate(state_now, P, GPS_input, diag([GPS_uncertaintyX, GPS_uncertaintyA]));
-        state = [state state_now];
-        
-        figure(2);
-        plot3(state(1,:), state(2,:), state(3,:),'g');
-        hold on;
-        plot3(state_gps(1,:), state_gps(2,:), state_gps(3,:),'m');
-        draw_vehicle(state_now);
-        hold off;
-        axis equal;
-        xlabel X;
-        ylabel Y;
-        zlabel Z;
-        view(0,90);
-        drawnow;
-
-        continue;
     end    
+    figure(2);
+    plot3(state(1,:), state(2,:), state(3,:),'g');
+    hold on;
+    plot3(state_gps(1,:), state_gps(2,:), state_gps(3,:),'m');
+    draw_vehicle(state_now);
+    hold off;
+    axis equal;
+    xlabel X;
+    ylabel Y;
+    zlabel Z;
+    drawnow;
 
 end
 
@@ -169,17 +154,18 @@ function state2 = Prediction(state1, IMU_input, dt)
 
     RPY = state1(4:6,1);
     UVW = state1(7:9,1);
-    BA = state1(10:12,1);
-    BW = state1(13:15,1);
 
     state2 = state1 + [RotationR(RPY)*UVW;...
-                       JacobianR(RPY)*(IMU_W - BW);...
-                       (IMU_A-BA) + RotationR(RPY)'*[0;0;Gravity] + cross(UVW, [IMU_W-BW]);...
-                       zeros(9,1)]*dt;
+                       JacobianR(RPY)*(IMU_W);...
+                       (IMU_A) + RotationR(RPY)'*[0;0;Gravity] + cross(UVW, IMU_W)]*dt;
+%     state2 = state1 + [RotationR(RPY)*UVW;...
+%                        JacobianR(RPY)*(IMU_W);...
+%                        (IMU_A) + cross(UVW, IMU_W)]*dt;
+
 end
 
 function [state2, P2] = IMUUpdate(state1, P1, IMU_attitude, IMU_var)
-    H = [zeros(3) eye(3) zeros(3) zeros(3) zeros(3) -eye(3)];
+    H = [zeros(3) eye(3) zeros(3)];
     y = IMU_attitude - H*state1;
     y = pi2pi(y);
     S = H*P1*H' + IMU_var;

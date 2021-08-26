@@ -1,7 +1,9 @@
 function test()
 
 fprintf('Loading IMU\n');
-IMU = load('imu_raw.txt');
+% IMU = load('imu_raw.txt');
+IMU = load('imu.txt');
+
 fprintf('IMU loaded\n');
 fprintf('Loading GPS\n');
 GPS = loadGPS('gps_raw.txt');
