@@ -1,15 +1,19 @@
 function imu_gps_test()
 
 fprintf('Loading IMU\n');
-IMU = load('./07291651/imu_raw.txt');
+% IMU = load('./07291651/imu_raw.txt');
 
 % IMU = load('imu.txt');
+IMU = load('imu_raw.txt');
+
 % Quaternion xyzw to wxyz
 IMU(:,2:5) = [IMU(:,5) IMU(:,2:4)];
 
 fprintf('IMU loaded\n');
 fprintf('Loading GPS\n');
-GPS = loadGPS('./07291651/gps_raw.txt');
+% GPS = loadGPS('./07291651/gps_raw.txt');
+GPS = loadGPS('gps_raw.txt');
+
 GPS = ProcessGPS(GPS);  %time, x, y, z, yaw
 
 % GPS = GPS(GPS(:,1)>1627545239.6,:);

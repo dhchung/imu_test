@@ -1,18 +1,18 @@
 function imu_gps_test_nobias()
 
 fprintf('Loading IMU\n');
-% IMU = load('imu_raw.txt');
+IMU = load('imu_raw.txt');
 
 % IMU = load('imu.txt');
 
-IMU = load('./07291651/imu_raw.txt');
+% IMU = load('./07291651/imu_raw.txt');
 % Quaternion xyzw to wxyz
 IMU(:,2:5) = [IMU(:,5) IMU(:,2:4)];
 
 fprintf('IMU loaded\n');
 fprintf('Loading GPS\n'); 
-% GPS = loadGPS('gps_raw.txt');
-GPS = loadGPS('./07291651/gps_raw.txt');
+GPS = loadGPS('gps_raw.txt');
+% GPS = loadGPS('./07291651/gps_raw.txt');
 GPS = ProcessGPS(GPS);  %time, x, y, z, yaw
 GPS_raw = GPS;
 GPS(:,5) = GPS(:,5)/180.0*pi;
@@ -87,7 +87,7 @@ for i=1:size(timeline,1)
         
         IMU_YPR = quat2eul(IMU(imu_idx, 2:5))';
         IMU_attitude = [IMU_YPR(3,1); IMU_YPR(2,1); IMU_YPR(1,1)];
-%         [state_now, P] = IMUUpdate(state_now, P, IMU_attitude, diag(IMU_uncertaintyA));        
+        [state_now, P] = IMUUpdate(state_now, P, IMU_attitude, diag(IMU_uncertaintyA));        
         
         state = [state state_now];
 
