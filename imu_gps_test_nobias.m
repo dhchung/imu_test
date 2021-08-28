@@ -19,6 +19,7 @@ GPS(:,5) = GPS(:,5)/180.0*pi;
 
 
 GPS(:,2:3) = GPS(:,2:3) - GPS(1,2:3);
+GPS(:,4) = 0;
 
 timeline = [GPS(:,1), zeros(size(GPS,1),1), (1:size(GPS,1))';...
             IMU(:,1), ones(size(IMU,1),1), (1:size(IMU,1))'];
@@ -37,7 +38,7 @@ IMU_uncertaintyA = [0.1, 0.1, 0.1];
 
 Q = diag([IMU_uncertaintyX, IMU_uncertaintyW]);
 
-GPS_uncertaintyX = [0.5, 0.5, 0.5];
+GPS_uncertaintyX = [0.04, 0.04, 0.1];
 GPS_uncertaintyA = 0.1;
 
 P = diag([0.1, 0.1, 0.1,...
@@ -103,7 +104,7 @@ for i=1:size(timeline,1)
         if(GPS_raw(gps_idx,5)~=180)
             dt = timeline(i,1) - last_time;
             last_time = timeline(i,1);
-            [state_now, P] = IMUPrediction(state_now, P, zeros(6,1), zeros(6), dt);
+            [state_now, P] = NoIMUPrediction(state_now, P, zeros(6,1), zeros(6), dt);
 
             GPS_input = GPS(gps_idx,2:5)';
             state_gps = [state_gps GPS_input];
@@ -146,11 +147,12 @@ function [state2, P2] = IMUPrediction(state1, P1, IMU_input, Q, dt)
     P2 = A*P1*A' + B*Q*B';
 end
 
+
 function state2 = Prediction(state1, IMU_input, dt)
-    Gravity = 9.8;
+    Gravity = 9.83;
 
     IMU_A = IMU_input(1:3,1);
-    IMU_W = IMU_input(4:6,1);
+    IMU_W = IMU_input(4:6,1); 
 
     RPY = state1(4:6,1);
     UVW = state1(7:9,1);
@@ -158,10 +160,35 @@ function state2 = Prediction(state1, IMU_input, dt)
     state2 = state1 + [RotationR(RPY)*UVW;...
                        JacobianR(RPY)*(IMU_W);...
                        (IMU_A) + RotationR(RPY)'*[0;0;Gravity] + cross(UVW, IMU_W)]*dt;
+
 %     state2 = state1 + [RotationR(RPY)*UVW;...
 %                        JacobianR(RPY)*(IMU_W);...
 %                        (IMU_A) + cross(UVW, IMU_W)]*dt;
 
+end
+
+
+function [state2, P2] = NoIMUPrediction(state1, P1, IMU_input, Q, dt)
+    state2 = PredictionNoIMU(state1, IMU_input, dt);
+    hs = 0.01*ones(9,1);
+    hi = 0.01*ones(6,1);
+    [A, B] = NumJacobi(state1, IMU_input, hs, hi, dt);
+    
+    state2(4:6,1) = pi2pi(state2(4:6,1));
+    
+    P2 = A*P1*A' + B*Q*B';
+end
+
+function state2 = PredictionNoIMU(state1, IMU_input, dt)
+    IMU_A = IMU_input(1:3,1);
+    IMU_W = IMU_input(4:6,1); 
+
+    RPY = state1(4:6,1);
+    UVW = state1(7:9,1);
+
+    state2 = state1 + [RotationR(RPY)*UVW;...
+                       JacobianR(RPY)*(IMU_W);...
+                       (IMU_A) + cross(UVW, IMU_W)]*dt;
 end
 
 function [state2, P2] = IMUUpdate(state1, P1, IMU_attitude, IMU_var)
