@@ -112,7 +112,7 @@ for i=1:size(timeline,1)
         end
 
     end
-    if(rem(i,100)==1)
+    if(rem(i,10)==0)
         
         figure(2);
         plot3(state(1,:), state(2,:), state(3,:),'g');

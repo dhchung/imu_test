@@ -30,7 +30,7 @@ figure(200);
 plot(GPS(:,2),GPS(:,3));
 axis equal;
 
-timeline = [GPS(:,1), zeros(size(GPS,1),1), (1:size(GPS,1))';...
+timeline = [GPS(:,1), zeros(size(GPS,1),1), (1:size(GPS,1))';... 
             IMU(:,1), ones(size(IMU,1),1), (1:size(IMU,1))'];
 
 timeline = sortrows(timeline,1);
@@ -48,9 +48,9 @@ initial_state = [0;0;0;... %x y z
                  BW;
                  BA];
 
-Bias_uncertaintyX = [0.01, 0.01, 0.01];
-Bias_uncertaintyW = [0.04, 0.04, 0.04];
-Bias_uncertaintyA = [0.04, 0.04, 0.04];
+Bias_uncertaintyX = [1, 1, 1];
+Bias_uncertaintyW = [4, 4, 4];
+Bias_uncertaintyA = [4, 4, 4];
 
 IMU_uncertaintyX = [10, 10, 10];
 IMU_uncertaintyW = [1, 1, 1];
@@ -152,6 +152,7 @@ for i=1:size(timeline,1)
 
         end
     end    
+
         figure(2);
         plot3(state(1,:), state(2,:), state(3,:),'g');
         hold on;
@@ -163,9 +164,10 @@ for i=1:size(timeline,1)
         ylabel Y;
         zlabel Z;
 %         view(0,90);
-        drawnow;
-
+        drawnow;    
+    
 end
+
 
 figure(1);
 plot3(state(1,:), state(2,:), state(3,:));
